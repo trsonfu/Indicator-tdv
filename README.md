@@ -4,6 +4,8 @@ Pine Script v6 overlay that combines **GMMA (Guppy Multiple Moving Average)**, *
 
 **Source file:** `gmma_indicator.pine.txt` (copy its contents into TradingView; the `.txt` suffix is for easy editing outside TradingView).
 
+<img width="2949" height="1325" alt="image" src="https://github.com/user-attachments/assets/23a8f6ff-69e6-41f8-ab02-d9c6832645d8" />
+
 ---
 
 ## How to add the indicator in TradingView
