@@ -1,103 +1,294 @@
-# GMMA Price Action MTF Engine (TradingView)
+# GMMA Price Action AI-Style MTF Engine v6 — Tutorial
 
-Pine Script v6 overlay that combines **GMMA (Guppy Multiple Moving Average)**, **multi-timeframe bias**, **momentum filters**, and **price-action rules** into a **0–100 score** that gates **LONG** and **SHORT** signals with optional **entry, stop-loss, and take-profit** lines.
+This README is a **hands-on tutorial** for the TradingView indicator in this repo. It matches how the **Pine Script v6** source actually behaves (`gmma_indicator.pine.txt`).
 
-**Source file:** `gmma_indicator.pine.txt` (copy its contents into TradingView; the `.txt` suffix is for easy editing outside TradingView).
+**Source file:** `gmma_indicator.pine.txt` — copy its entire contents into TradingView’s Pine Editor (the `.txt` suffix is only for editing outside TradingView).
 
-<img width="2949" height="1325" alt="image" src="https://github.com/user-attachments/assets/23a8f6ff-69e6-41f8-ab02-d9c6832645d8" />
-
----
-
-## How to add the indicator in TradingView
-
-1. Open [TradingView](https://www.tradingview.com/) and open a chart.
-2. Click **Pine Editor** at the bottom (or **Indicators → Create** in some layouts).
-3. Open **New** → **Blank indicator** (or clear the default template).
-4. Open `gmma_indicator.pine.txt` in this repo, **select all**, **copy**, and **paste** into the Pine Editor.
-5. Click **Save** (give it a name, e.g. `GMMA MTF Engine v6`), then **Add to chart**.
-
-The script uses `//@version=6`. Your account must support **Pine Script v6** (current TradingView plans do).
+<img width="2949" height="1325" alt="Chart example" src="https://github.com/user-attachments/assets/23a8f6ff-69e6-41f8-ab02-d9c6832645d8" />
 
 ---
 
-## What you see on the chart
+## 1. What you are installing
 
-| Element | Purpose |
-|--------|---------|
-| **Fast / slow EMA ribbons** | Classic GMMA: stacked fast group vs slow group; color reflects bull/bear/neutral read. |
-| **EMA 200** | Long-term trend filter and context. |
-| **Supertrend** | Trend filter aligned with the score engine. |
-| **Pivot high / low lines** | Last confirmed pivot levels used for BOS and structure. |
-| **LONG / SHORT labels** | Fire when **entry logic**, **filters**, **minimum score**, and **bar confirmation** (if enabled) all agree—only on the **first bar** of the setup. |
-| **Entry / SL / TP lines + label** | Shown when a signal fires (if enabled); SL mode and R:R come from settings. |
-| **Trend background** | Optional green/red tint from GMMA state. |
-| **Score table** (top right) | Live read of long/short scores, MTF bias, momentum, price action, and quality labels. |
+You are not installing a single “buy when line crosses” script. The engine is a **multi-framework decision stack** that tries to answer, in order:
 
----
+1. **Trend** — Is bias bullish, bearish, or mixed (GMMA, Supertrend, EMA200)?
+2. **Momentum** — Is the move backed by force (RSI, MACD, ADX/DMI)?
+3. **Structure & price action** — Breaks, retests, pullbacks, candle shapes?
+4. **Regime** — Expanding vs compressing volatility, ribbon width, stretch vs mean?
+5. **Higher timeframes** — Do two bias timeframes support or fight the idea?
+6. **Only then** — Should a **LONG/SHORT** label appear, with **entry / SL / TP** hints?
 
-## Main settings (quick reference)
-
-### Trading behavior
-
-- **Trading Mode**
-  - **Aggressive:** More triggers (e.g. GMMA cross, BOS, pullback, inside break).
-  - **Balanced:** BOS, retest, or pullback-style entries.
-  - **Conservative:** Stricter combinations (e.g. retest-focused, or BOS + engulf, pullback + pin).
-- **Only Confirm On Candle Close:** When on, signals evaluate on the **closed** bar (fewer repaints on the forming candle).
-- **Min Long Score / Min Short Score:** Signals require the score to be at least this value (default **75**).
-
-### Display toggles
-
-Turn ribbons, EMA200, Supertrend, signals, trade levels, score table, and background on or off from the indicator inputs.
-
-### Multi-timeframe (MTF)
-
-- **Use MTF Engine:** Pulls bias from two higher timeframes (default **5** and **15** minutes; change to fit your chart, e.g. on a daily chart use **W** and **M**).
-- **MTF Weight TF1 / TF2:** Extra points when that timeframe is **fully aligned** (GMMA + EMA200 + Supertrend + RSI midpoint + ADX floor).
-- **Conflict:** If higher timeframes align **against** your direction, the score is **penalized** (reduces chasing counter-trend).
-
-### Risk
-
-- **Stop Loss Mode:** **ATR** (multiple of ATR), **Swing** (recent low/high over lookback), or **Slow Band** (uses slow GMMA line `emaS1`).
-- **Risk Reward (`rr`):** Take-profit distance as a multiple of risk from entry to stop.
-
-### Filters (all optional via toggles)
-
-Core: GMMA, Supertrend, EMA200, RSI, MACD, ADX, optional volume and ATR floor.
-
-Price action: **BOS** (break of last pivot), optional **retest**, candle confirmation (engulf / pin), optional inside-bar break.
-
-When a filter is **on**, it must pass (along with the BOS/retest logic as coded) for a signal to print.
+**“AI-style”** here means: many features are **combined, weighted, and penalized** into **long** and **short** scores (0–100), plus **grades** and **entry quality** labels. There is **no machine learning** inside Pine; it is a transparent rule engine.
 
 ---
 
-## Understanding the score (not machine learning)
+## 2. Install on TradingView
 
-Long and short scores are **rule-based**: points are added or subtracted for trend alignment, momentum, price action events, ribbon width, volatility regime, stretch vs EMA200, CHoCH-style context, and MTF weights/penalties. Scores are capped between **0** and **100**. The table’s **Signal Grade** and **Entry Quality** summarize that snapshot for quick scanning.
+1. Open [TradingView](https://www.tradingview.com/) and a chart.
+2. Open **Pine Editor** (bottom) → **New** blank indicator.
+3. Paste the full contents of `gmma_indicator.pine.txt`.
+4. **Save**, then **Add to chart**.
+
+Requires **Pine Script v6**. The script is an **overlay** (`overlay=true`).
 
 ---
 
-## Alerts
+## 3. How to use it (recommended workflow)
 
-In the chart’s **Alerts** panel, create an alert on this indicator and choose:
+Treat the **Score Table** (top right) as the main interface. **Read context before chasing a label.**
+
+Suggested order:
+
+1. **Bias** — Long vs short edge (score gap).
+2. **Trend** — Bull / Bear / Mixed (GMMA + Supertrend + EMA200 agreement).
+3. **MTF Bias** — Full HTF align, partial, or neutral.
+4. **Structure** — HH/HL vs LH/LL, transition, reversal attempts.
+5. **Price Action** — BOS, retest, engulf, pin, inside break, CHoCH hints.
+6. **Momentum** — RSI + MACD + ADX story.
+7. **Condition** — Expansion, compression, tight/choppy.
+8. **Stretch** — Overextension vs normal (chase risk).
+9. **Entry Quality** — Good / Early/Good / Late/Chase / Weak.
+10. **Signal** — Only if **mode + filters + min score + bar rule** all pass.
+
+**Decision support, not autopilot:** Prefer trades when the table tells a **coherent story** (aligned trend, momentum, PA, and HTF), and skip marginal rows (mixed trend, neutral MTF, compression, late quality, low grade).
+
+---
+
+## 4. Core building blocks (what the script actually computes)
+
+### 4.1 GMMA (trend core)
+
+- **Fast EMAs:** 3, 5, 8, 10, 12, 15 (configurable).
+- **Slow EMAs:** 30, 35, 40, 45, 50, 60 (configurable).
+
+**Bullish GMMA:** average of fast group **>** average of slow group **and** each group is **perfectly stacked** in ascending order (fast ribbon) / descending for bearish.
+
+**Cross events:** `fastAvg` vs `slowAvg` crossover / crossunder (used in **Aggressive** mode).
+
+**Ribbon separation** (as % of price):
+
+- **Strong ribbon:** separation ≥ **0.15%** → adds score (clearer trend space).
+- **Tight ribbon:** separation **< 0.08%** → subtracts score (chop / weak separation).
+
+### 4.2 EMA200
+
+- Price **above** EMA200 → long-side environment; **below** → short-side.
+- Used in filters, trend text, MTF alignment, and **stretch**: if price is far from EMA200 **relative to ATR%**, the engine marks **overextended** and **penalizes** score (anti-chase).
+
+### 4.3 Supertrend
+
+Confirms trend direction with the built-in Supertrend. Bull/bear states feed **score**, **filters**, **trend text**, and **MTF alignment**.
+
+### 4.4 RSI, MACD, ADX/DMI
+
+- **RSI:** long-friendly if RSI ≥ **55** (default); short-friendly if RSI ≤ **45** (default).
+- **MACD:** bull if MACD line **>** signal **and** histogram **≥ 0**; bear mirrored with histogram **≤ 0**.
+- **ADX:** trend force filter; **+DI > -DI** or **-DI > +DI** with ADX ≥ **min ADX** (default 20) for directional pressure.
+
+### 4.5 Volume & ATR floor (optional filters)
+
+- **Volume:** bar volume **>** SMA(volume) × multiplier (default 1.0) when the volume filter is on.  
+  *Note:* In the score engine, **high volume adds the same bonus to both long and short** when `volBull` is true (participation, not direction).
+- **ATR floor:** current ATR vs a baseline SMA × multiplier — filters **dead** volatility when enabled.
+
+### 4.6 Price action layer
+
+- **Pivots:** pivot high/low over `pivotLen` (default 3) — last pivot levels are drawn and drive **BOS** and retest logic.
+- **BOS (break of structure):** close **breaks** the last pivot high (bull) or low (bear) with the prior close on the other side.
+- **Retest:** prior bar broke the level; current bar pulls back within an **ATR × buffer** zone and closes back on the trend side.
+- **Pullback:** in GMMA bull/bear context, price vs slow ribbon + **cross** of close vs **fast EMA #3** (`emaF3`).
+- **Candles:** engulfing, pin/rejection, inside-bar breakout.
+- **Dow-style:** simplified HH/HL vs LH/LL style read from swings + structure flags.
+- **CHoCH-style hints:** pivot break **against** current GMMA state — small score nudge and structure text (“reversal try”).
+
+### 4.7 Compression / expansion
+
+Uses **ATR%** vs its own 20-bar SMA:
+
+- **Compression** if ATR% **<** SMA(ATR%, 20) × **0.85** → score penalty.
+- **Expansion** if ATR% **>** SMA(ATR%, 20) × **1.15** → score bonus.
+
+Table **Condition** combines this with tight ribbon for **“Tight / Choppy”** when relevant.
+
+---
+
+## 5. Multi-timeframe (MTF) engine
+
+With **Use MTF Engine** on, the script calls `request.security` on **Bias TF 1** and **Bias TF 2** (defaults **5** and **15** — **always set these higher than or appropriate to your chart timeframe**).
+
+**Aligned long** on an HTF requires **all** of:
+
+- HTF **GMMA bull**
+- HTF **close > EMA200**
+- HTF **Supertrend bull**
+- HTF **RSI ≥ 50**
+- HTF **ADX ≥ min ADX**
+
+**Aligned short** is the mirror (GMMA bear, close < EMA200, Supertrend bear, RSI ≤ 50, ADX ≥ min).
+
+**Scoring:**
+
+- Adds **MTF Weight TF1** / **TF2** (defaults 10 and 15, max 30 each in inputs) when that TF is aligned **with** that side.
+- Subtracts **10** when MTF is **conflicting** (e.g. for a long idea, either HTF is **fully aligned short**).
+
+**Table text:** full bull/bear HTF align, **partial** if only one TF aligns, else **MTF Neutral**.
+
+---
+
+## 6. Scoring engine (exact weights in code)
+
+Scores start at 0. **Additions and penalties** below are per **longScore** / **shortScore** from the same logical event on each side (mirror for bearish). MTF weights use your input values.
+
+| Category | Condition | Points (typical side) |
+|----------|-----------|------------------------|
+| Trend | GMMA bull / bear | **+16** |
+| Trend | Supertrend bull / bear | **+8** |
+| Trend | EMA200 bull / bear | **+8** |
+| Structure | Dow-style bull / bear | **+6** |
+| Momentum | RSI bull / bear | **+6** |
+| Momentum | MACD bull / bear | **+6** |
+| Momentum | ADX/DMI bull / bear | **+8** |
+| Participation | High volume (`volBull`) | **+4** (both sides) |
+| PA | BOS bull / bear | **+9** |
+| PA | Retest bull / bear | **+8** |
+| PA | Pullback long / short | **+7** |
+| PA | Engulfing bull / bear | **+4** |
+| PA | Pin bull / bear | **+3** |
+| PA | Inside break bull / bear | **+3** |
+| Context | Strong ribbon | **+5** |
+| Context | Tight ribbon | **−6** |
+| Context | Expansion | **+4** |
+| Context | Compression | **−5** |
+| Context | Overextended long / short | **−6** |
+| Structure | CHoCH-style bull / bear hint | **+3** |
+| MTF | Aligned TF1 / TF2 | **+weight** (inputs) |
+| MTF | Conflict | **−10** |
+
+Then each score is **clamped to 0–100**.
+
+**Signal grade** (`Signal Grade` row) uses **max(longScore, shortScore)**:
+
+- **A+** ≥ 90  
+- **A** ≥ 82  
+- **B** ≥ 74  
+- **C** ≥ 64  
+- else **D**
+
+**Entry quality** (separate for long/short) uses score, HTF alignment, retest/BOS, overextension — labels include **Good**, **Early/Good**, **Late/Chase**, **Weak**.
+
+---
+
+## 7. When LONG / SHORT actually print
+
+A signal is **not** “score > threshold” alone. **All** must be true:
+
+1. **Entry pattern** for the selected **Trading Mode** (see below).
+2. **Every enabled filter** passes (`useGMMAFilter`, `useSupertrendFilter`, …).
+3. **Long/short score** ≥ **Min Long/Short Score** (default 75).
+4. **Bar confirmation** if **Only Confirm On Candle Close** is on (`barstate.isconfirmed`).
+5. **First bar** of the raw condition: `signalRaw and not signalRaw[1]` (no repeat every bar).
+
+### 7.1 Trading modes (entry pattern)
+
+| Mode | Long triggers (any) | Short triggers (any) |
+|------|------------------------|----------------------|
+| **Aggressive** | GMMA cross up, bull BOS, pullback long, inside break up | GMMA cross down, bear BOS, pullback short, inside break down |
+| **Balanced** | Bull BOS, bull retest, pullback long | Bear BOS, bear retest, pullback short |
+| **Conservative** | Bull retest, or (**bull** BOS + bull engulf), or (pullback long + bull pin) | Bear retest, or (**bear** BOS + bear engulf), or (pullback short + bear pin) |
+
+### 7.2 Filters (when toggled on)
+
+Examples:
+
+- **BOS filter:** allows long if **bull BOS OR bull retest OR pullback long** (so you are not forced into only a raw BOS).
+- **Retest filter:** if on, **requires** the retest condition for that side.
+- **Candle filter:** long requires **bull engulf OR bull pin**; short requires **bear engulf OR bear pin**.
+- **Inside bar filter:** requires inside-bar breakout in that direction.
+
+Disable filters gradually if you want more signals; enable more for **stricter** discretionary trading.
+
+---
+
+## 8. Risk: entry, stop, target
+
+On a signal bar (for display):
+
+- **Entry** = **close** of the signal bar.
+- **Stop** by mode:
+  - **ATR:** entry ± ATR × multiplier.
+  - **Swing:** lowest low / highest high over **Swing Lookback**.
+  - **Slow band:** **EMA slow group first line (`emaS1`)** as stop reference.
+- **Take profit:** entry ± (**risk** × **Risk Reward**), where risk = distance to stop (floored to `syminfo.mintick`).
+
+Lines extend a fixed number of bars ahead for visualization; **manage real trades** in your platform with your own rules.
+
+---
+
+## 9. Score Table cheat sheet
+
+| Row | Meaning |
+|-----|--------|
+| Long / Short Score | Raw 0–100 after clamp; compare to your min threshold. |
+| Bias | Long vs short edge if one score leads by **> 10**. |
+| Trend | Bull / Bear / Mixed from GMMA + ST + EMA200. |
+| MTF Bias | Combined HTF story. |
+| TF1 / TF2 | Bull / Bear / Neutral for each bias timeframe. |
+| Structure | Dow-style + CHoCH-style hints. |
+| Price Action | Highest-priority PA label for that bar. |
+| Momentum | ADX + MACD + RSI combined text. |
+| Condition | Expansion / compression / tight-choppy / normal. |
+| Stretch | EMA200 distance vs ATR-style overextension. |
+| RSI / MACD / ADX / Volume / ATR | Raw context for the engine. |
+| Pivot Levels | Last pivot high/low used in logic. |
+| Long/Short Entry Q | Timeliness / chase risk for that direction. |
+| Signal Grade | Letter grade from max score. |
+
+---
+
+## 10. Suggested starting presets (from project docs)
+
+Adjust to your symbol and session; these are **starting points**, not guarantees.
+
+**Crypto scalping (chart 1m–3m)**  
+Bias TF1 **5m**, TF2 **15m** · Mode **Balanced** · Min score **~75** · Stop **ATR** mult **~1.4–1.8** · BOS + candle filters on.
+
+**XAUUSD scalping**  
+Bias TF1 **15m**, TF2 **60m** · Mode **Conservative** · Min score **~80** · Stop **Swing** · BOS + **retest** + candle + **ATR floor** on.
+
+**Forex intraday (5m–15m chart)**  
+Mode **Balanced** or **Conservative** · Stop **Swing** · EMA200 + MTF on · **ATR floor** often useful.
+
+---
+
+## 11. Alerts
+
+Create alerts from the indicator’s conditions:
 
 - **Long Signal** / **Short Signal**
 - **Bull BOS** / **Bear BOS**
 
-Use your preferred notification channel (app, email, webhook, etc.) in TradingView’s alert dialog.
+---
+
+## 12. What this project is not
+
+- Not a guaranteed profitable system.  
+- Not a single-indicator holy grail.  
+- Not training ML inside Pine (future external ML would be a separate pipeline).  
+- Not a substitute for your own risk, sizing, and discretion.
 
 ---
 
-## Repository layout
+## 13. Repository layout
 
 ```
 Indicator-tdv/
-├── gmma_indicator.pine.txt   # Full Pine v6 source (paste into TradingView)
-└── README.md                 # This guide
+├── gmma_indicator.pine.txt   # Pine v6 source — paste into TradingView
+└── README.md                 # This tutorial
 ```
 
 ---
 
 ## Disclaimer
 
-This indicator is for **education and research** only. It is not financial advice. Past performance of any script does not guarantee future results. Always manage risk and comply with your jurisdiction’s rules.
+This indicator is for **education and research** only. It is not financial advice. Past performance does not guarantee future results. Trade only with capital you can afford to lose and follow applicable laws and broker rules.
