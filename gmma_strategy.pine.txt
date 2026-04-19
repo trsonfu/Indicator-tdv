@@ -144,10 +144,18 @@ f_slow_avg(_src) =>
     (ta.ema(_src, s1) + ta.ema(_src, s2) + ta.ema(_src, s3) + ta.ema(_src, s4) + ta.ema(_src, s5) + ta.ema(_src, s6)) / 6.0
 
 f_gmma_bull(_src) =>
-    _f1 = ta.ema(_src, f1);  _f2 = ta.ema(_src, f2);  _f3 = ta.ema(_src, f3)
-    _f4 = ta.ema(_src, f4);  _f5 = ta.ema(_src, f5);  _f6 = ta.ema(_src, f6)
-    _s1 = ta.ema(_src, s1);  _s2 = ta.ema(_src, s2);  _s3 = ta.ema(_src, s3)
-    _s4 = ta.ema(_src, s4);  _s5 = ta.ema(_src, s5);  _s6 = ta.ema(_src, s6)
+    _f1 = ta.ema(_src, f1)
+    _f2 = ta.ema(_src, f2)
+    _f3 = ta.ema(_src, f3)
+    _f4 = ta.ema(_src, f4)
+    _f5 = ta.ema(_src, f5)
+    _f6 = ta.ema(_src, f6)
+    _s1 = ta.ema(_src, s1)
+    _s2 = ta.ema(_src, s2)
+    _s3 = ta.ema(_src, s3)
+    _s4 = ta.ema(_src, s4)
+    _s5 = ta.ema(_src, s5)
+    _s6 = ta.ema(_src, s6)
     _fAvg = (_f1+_f2+_f3+_f4+_f5+_f6) / 6.0
     _sAvg = (_s1+_s2+_s3+_s4+_s5+_s6) / 6.0
     _fStack = _f1>_f2 and _f2>_f3 and _f3>_f4 and _f4>_f5 and _f5>_f6
@@ -155,10 +163,18 @@ f_gmma_bull(_src) =>
     _fAvg > _sAvg and _fStack and _sStack
 
 f_gmma_bear(_src) =>
-    _f1 = ta.ema(_src, f1);  _f2 = ta.ema(_src, f2);  _f3 = ta.ema(_src, f3)
-    _f4 = ta.ema(_src, f4);  _f5 = ta.ema(_src, f5);  _f6 = ta.ema(_src, f6)
-    _s1 = ta.ema(_src, s1);  _s2 = ta.ema(_src, s2);  _s3 = ta.ema(_src, s3)
-    _s4 = ta.ema(_src, s4);  _s5 = ta.ema(_src, s5);  _s6 = ta.ema(_src, s6)
+    _f1 = ta.ema(_src, f1)
+    _f2 = ta.ema(_src, f2)
+    _f3 = ta.ema(_src, f3)
+    _f4 = ta.ema(_src, f4)
+    _f5 = ta.ema(_src, f5)
+    _f6 = ta.ema(_src, f6)
+    _s1 = ta.ema(_src, s1)
+    _s2 = ta.ema(_src, s2)
+    _s3 = ta.ema(_src, s3)
+    _s4 = ta.ema(_src, s4)
+    _s5 = ta.ema(_src, s5)
+    _s6 = ta.ema(_src, s6)
     _fAvg = (_f1+_f2+_f3+_f4+_f5+_f6) / 6.0
     _sAvg = (_s1+_s2+_s3+_s4+_s5+_s6) / 6.0
     _fStack = _f1<_f2 and _f2<_f3 and _f3<_f4 and _f4<_f5 and _f5<_f6
