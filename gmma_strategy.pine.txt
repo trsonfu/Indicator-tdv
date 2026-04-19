@@ -1,5 +1,5 @@
 //@version=6
-strategy("GMMA Price Action AI-Style MTF Engine v6 — Strategy",
+strategy("GMMA Price Action AI-Style MTF Engine v6 - Strategy",
      overlay=true,
      max_labels_count=500,
      max_lines_count=500,
@@ -12,13 +12,13 @@ strategy("GMMA Price Action AI-Style MTF Engine v6 — Strategy",
      pyramiding=0)
 
 //====================================================
-// INPUTS — STRATEGY
+// INPUTS - STRATEGY
 //====================================================
 commissionPct  = input.float(0.05, "Commission %", step=0.01, minval=0, group="Strategy")
 useShorts      = input.bool(true,  "Enable Short Trades", group="Strategy")
 
 //====================================================
-// INPUTS — INDICATOR
+// INPUTS - INDICATOR
 //====================================================
 src = input.source(close, "Source")
 
@@ -679,7 +679,7 @@ plotshape(showSignals and longSignal,  title="Long",  style=shape.labelup,   loc
 plotshape(showSignals and shortSignal, title="Short", style=shape.labeldown, location=location.abovebar, color=color.red,  text="SHORT", textcolor=color.white, size=size.small)
 
 //====================================================
-// TRADE LEVEL LINES (visual only — same as indicator)
+// TRADE LEVEL LINES (visual only - same as indicator)
 //====================================================
 var line longEntryLine  = na
 var line longSLLine     = na
