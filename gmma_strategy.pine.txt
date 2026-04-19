@@ -376,80 +376,58 @@ mtfConflictShort = useMTF and (mtf1AlignedLong  or mtf2AlignedLong)
 //====================================================
 // AI-STYLE SCORE ENGINE
 //====================================================
-int longScore  = 0
-int shortScore = 0
+longScoreRaw =
+     (gmmaBull ? 16 : 0)
+     + (stBull ? 8 : 0)
+     + (ema200Bull ? 8 : 0)
+     + (dowBull ? 6 : 0)
+     + (rsiBull ? 6 : 0)
+     + (macdBull ? 6 : 0)
+     + (adxBull ? 8 : 0)
+     + (volBull ? 4 : 0)
+     + (bosBull ? 9 : 0)
+     + (retestBull ? 8 : 0)
+     + (pullbackLong ? 7 : 0)
+     + (bullEngulf ? 4 : 0)
+     + (bullPin ? 3 : 0)
+     + (insideBreakBull ? 3 : 0)
+     + (ribbonStrong ? 5 : 0)
+     - (ribbonTight ? 6 : 0)
+     + (expansion ? 4 : 0)
+     - (compression ? 5 : 0)
+     - (overextendedLong ? 6 : 0)
+     + (chochBull ? 3 : 0)
+     + (useMTF and mtf1AlignedLong ? mtfWeightBias1 : 0)
+     + (useMTF and mtf2AlignedLong ? mtfWeightBias2 : 0)
+     - (mtfConflictLong ? 10 : 0)
 
-longScore  += gmmaBull ? 16 : 0
-shortScore += gmmaBear ? 16 : 0
+shortScoreRaw =
+     (gmmaBear ? 16 : 0)
+     + (stBear ? 8 : 0)
+     + (ema200Bear ? 8 : 0)
+     + (dowBear ? 6 : 0)
+     + (rsiBear ? 6 : 0)
+     + (macdBear ? 6 : 0)
+     + (adxBear ? 8 : 0)
+     + (volBull ? 4 : 0)
+     + (bosBear ? 9 : 0)
+     + (retestBear ? 8 : 0)
+     + (pullbackShort ? 7 : 0)
+     + (bearEngulf ? 4 : 0)
+     + (bearPin ? 3 : 0)
+     + (insideBreakBear ? 3 : 0)
+     + (ribbonStrong ? 5 : 0)
+     - (ribbonTight ? 6 : 0)
+     + (expansion ? 4 : 0)
+     - (compression ? 5 : 0)
+     - (overextendedShort ? 6 : 0)
+     + (chochBear ? 3 : 0)
+     + (useMTF and mtf1AlignedShort ? mtfWeightBias1 : 0)
+     + (useMTF and mtf2AlignedShort ? mtfWeightBias2 : 0)
+     - (mtfConflictShort ? 10 : 0)
 
-longScore  += stBull ? 8 : 0
-shortScore += stBear ? 8 : 0
-
-longScore  += ema200Bull ? 8 : 0
-shortScore += ema200Bear ? 8 : 0
-
-longScore  += dowBull ? 6 : 0
-shortScore += dowBear ? 6 : 0
-
-longScore  += rsiBull ? 6 : 0
-shortScore += rsiBear ? 6 : 0
-
-longScore  += macdBull ? 6 : 0
-shortScore += macdBear ? 6 : 0
-
-longScore  += adxBull ? 8 : 0
-shortScore += adxBear ? 8 : 0
-
-longScore  += volBull ? 4 : 0
-shortScore += volBull ? 4 : 0
-
-longScore  += bosBull     ? 9 : 0
-shortScore += bosBear     ? 9 : 0
-
-longScore  += retestBull  ? 8 : 0
-shortScore += retestBear  ? 8 : 0
-
-longScore  += pullbackLong  ? 7 : 0
-shortScore += pullbackShort ? 7 : 0
-
-longScore  += bullEngulf ? 4 : 0
-shortScore += bearEngulf ? 4 : 0
-
-longScore  += bullPin ? 3 : 0
-shortScore += bearPin ? 3 : 0
-
-longScore  += insideBreakBull ? 3 : 0
-shortScore += insideBreakBear ? 3 : 0
-
-longScore  += ribbonStrong ? 5 : 0
-shortScore += ribbonStrong ? 5 : 0
-
-longScore  -= ribbonTight ? 6 : 0
-shortScore -= ribbonTight ? 6 : 0
-
-longScore  += expansion ? 4 : 0
-shortScore += expansion ? 4 : 0
-
-longScore  -= compression ? 5 : 0
-shortScore -= compression ? 5 : 0
-
-longScore  -= overextendedLong  ? 6 : 0
-shortScore -= overextendedShort ? 6 : 0
-
-longScore  += chochBull ? 3 : 0
-shortScore += chochBear ? 3 : 0
-
-longScore  += useMTF and mtf1AlignedLong  ? mtfWeightBias1 : 0
-shortScore += useMTF and mtf1AlignedShort ? mtfWeightBias1 : 0
-
-longScore  += useMTF and mtf2AlignedLong  ? mtfWeightBias2 : 0
-shortScore += useMTF and mtf2AlignedShort ? mtfWeightBias2 : 0
-
-longScore  -= mtfConflictLong  ? 10 : 0
-shortScore -= mtfConflictShort ? 10 : 0
-
-longScore  := math.max(0, math.min(longScore,  100))
-shortScore := math.max(0, math.min(shortScore, 100))
+longScore  = math.max(0, math.min(longScoreRaw,  100))
+shortScore = math.max(0, math.min(shortScoreRaw, 100))
 
 //====================================================
 // FILTERS
@@ -485,15 +463,15 @@ shortFiltersOk =
 //====================================================
 // ENTRY LOGIC
 //====================================================
-longBase =
-     mode == "Aggressive" ? (gmmaCrossUp or bosBull or pullbackLong or insideBreakBull) :
-     mode == "Balanced"   ? (bosBull or retestBull or pullbackLong) :
-                            (retestBull or (bosBull and bullEngulf) or (pullbackLong and bullPin))
+longBaseAggr = gmmaCrossUp or bosBull or pullbackLong or insideBreakBull
+longBaseBal  = bosBull or retestBull or pullbackLong
+longBaseCons = retestBull or (bosBull and bullEngulf) or (pullbackLong and bullPin)
+longBase     = mode == "Aggressive" ? longBaseAggr : mode == "Balanced" ? longBaseBal : longBaseCons
 
-shortBase =
-     mode == "Aggressive" ? (gmmaCrossDown or bosBear or pullbackShort or insideBreakBear) :
-     mode == "Balanced"   ? (bosBear or retestBear or pullbackShort) :
-                            (retestBear or (bosBear and bearEngulf) or (pullbackShort and bearPin))
+shortBaseAggr = gmmaCrossDown or bosBear or pullbackShort or insideBreakBear
+shortBaseBal  = bosBear or retestBear or pullbackShort
+shortBaseCons = retestBear or (bosBear and bearEngulf) or (pullbackShort and bearPin)
+shortBase     = mode == "Aggressive" ? shortBaseAggr : mode == "Balanced" ? shortBaseBal : shortBaseCons
 
 barConfirmed = confirmOnClose ? barstate.isconfirmed : true
 

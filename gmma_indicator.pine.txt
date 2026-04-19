@@ -18,6 +18,8 @@ showTradeLevels = input.bool(true, "Show Entry / SL / TP")
 showScoreTable  = input.bool(true, "Show Score Table")
 showTrendBg     = input.bool(true, "Show Trend Background")
 
+trendContextBars = input.int(5, "Table: trend context bars", minval=2, maxval=50, tooltip="Score table counts how many of the last N bars agreed on full bull/bear trend (GMMA+ST+EMA200) and GMMA alone.")
+
 minLongScore  = input.int(75, "Min Long Score", minval=1, maxval=100)
 minShortScore = input.int(75, "Min Short Score", minval=1, maxval=100)
 
@@ -191,6 +193,10 @@ f_entry_quality(_score, _trendAligned, _retest, _bos, _stretch) =>
      _score >= 75 and not _stretch ? "Early/Good" :
      _stretch ? "Late/Chase" : "Weak"
 
+// Rolling count of true bars over _len (Pine has no ta.sum series)
+f_roll_bool_count(_cond, _len) =>
+    int(math.round(ta.sma(_cond ? 1.0 : 0.0, _len) * _len))
+
 //====================================================
 // CURRENT TIMEFRAME CORE
 //====================================================
@@ -200,6 +206,9 @@ emaF3 = ta.ema(src, f3)
 emaF4 = ta.ema(src, f4)
 emaF5 = ta.ema(src, f5)
 emaF6 = ta.ema(src, f6)
+
+crossCloseAboveEmaF3 = ta.crossover(close, emaF3)
+crossCloseBelowEmaF3 = ta.crossunder(close, emaF3)
 
 emaS1 = ta.ema(src, s1)
 emaS2 = ta.ema(src, s2)
@@ -306,8 +315,8 @@ insideBreakBear = insideBar[1] and close < low[1]
 compression = atrPct < ta.sma(atrPct, 20) * 0.85
 expansion = atrPct > ta.sma(atrPct, 20) * 1.15
 
-pullbackLong  = gmmaBull and close > slowAvg and ta.crossover(close, emaF3)
-pullbackShort = gmmaBear and close < slowAvg and ta.crossunder(close, emaF3)
+pullbackLong  = gmmaBull and close > slowAvg and crossCloseAboveEmaF3
+pullbackShort = gmmaBear and close < slowAvg and crossCloseBelowEmaF3
 
 overextendedLong  = close > ema200 and emaDistancePct > atrPct * 1.8
 overextendedShort = close < ema200 and emaDistancePct > atrPct * 1.8
@@ -360,85 +369,58 @@ mtfConflictShort = useMTF and (mtf1AlignedLong or mtf2AlignedLong)
 //====================================================
 // AI-STYLE SCORE ENGINE
 //====================================================
-int longScore = 0
-int shortScore = 0
+longScoreRaw =
+     (gmmaBull ? 16 : 0)
+     + (stBull ? 8 : 0)
+     + (ema200Bull ? 8 : 0)
+     + (dowBull ? 6 : 0)
+     + (rsiBull ? 6 : 0)
+     + (macdBull ? 6 : 0)
+     + (adxBull ? 8 : 0)
+     + (volBull ? 4 : 0)
+     + (bosBull ? 9 : 0)
+     + (retestBull ? 8 : 0)
+     + (pullbackLong ? 7 : 0)
+     + (bullEngulf ? 4 : 0)
+     + (bullPin ? 3 : 0)
+     + (insideBreakBull ? 3 : 0)
+     + (ribbonStrong ? 5 : 0)
+     - (ribbonTight ? 6 : 0)
+     + (expansion ? 4 : 0)
+     - (compression ? 5 : 0)
+     - (overextendedLong ? 6 : 0)
+     + (chochBull ? 3 : 0)
+     + (useMTF and mtf1AlignedLong ? mtfWeightBias1 : 0)
+     + (useMTF and mtf2AlignedLong ? mtfWeightBias2 : 0)
+     - (mtfConflictLong ? 10 : 0)
 
-// Trend core
-longScore  += gmmaBull ? 16 : 0
-shortScore += gmmaBear ? 16 : 0
+shortScoreRaw =
+     (gmmaBear ? 16 : 0)
+     + (stBear ? 8 : 0)
+     + (ema200Bear ? 8 : 0)
+     + (dowBear ? 6 : 0)
+     + (rsiBear ? 6 : 0)
+     + (macdBear ? 6 : 0)
+     + (adxBear ? 8 : 0)
+     + (volBull ? 4 : 0)
+     + (bosBear ? 9 : 0)
+     + (retestBear ? 8 : 0)
+     + (pullbackShort ? 7 : 0)
+     + (bearEngulf ? 4 : 0)
+     + (bearPin ? 3 : 0)
+     + (insideBreakBear ? 3 : 0)
+     + (ribbonStrong ? 5 : 0)
+     - (ribbonTight ? 6 : 0)
+     + (expansion ? 4 : 0)
+     - (compression ? 5 : 0)
+     - (overextendedShort ? 6 : 0)
+     + (chochBear ? 3 : 0)
+     + (useMTF and mtf1AlignedShort ? mtfWeightBias1 : 0)
+     + (useMTF and mtf2AlignedShort ? mtfWeightBias2 : 0)
+     - (mtfConflictShort ? 10 : 0)
 
-longScore  += stBull ? 8 : 0
-shortScore += stBear ? 8 : 0
-
-longScore  += ema200Bull ? 8 : 0
-shortScore += ema200Bear ? 8 : 0
-
-longScore  += dowBull ? 6 : 0
-shortScore += dowBear ? 6 : 0
-
-// Momentum core
-longScore  += rsiBull ? 6 : 0
-shortScore += rsiBear ? 6 : 0
-
-longScore  += macdBull ? 6 : 0
-shortScore += macdBear ? 6 : 0
-
-longScore  += adxBull ? 8 : 0
-shortScore += adxBear ? 8 : 0
-
-longScore  += volBull ? 4 : 0
-shortScore += volBull ? 4 : 0
-
-// Price action core
-longScore  += bosBull ? 9 : 0
-shortScore += bosBear ? 9 : 0
-
-longScore  += retestBull ? 8 : 0
-shortScore += retestBear ? 8 : 0
-
-longScore  += pullbackLong ? 7 : 0
-shortScore += pullbackShort ? 7 : 0
-
-longScore  += bullEngulf ? 4 : 0
-shortScore += bearEngulf ? 4 : 0
-
-longScore  += bullPin ? 3 : 0
-shortScore += bearPin ? 3 : 0
-
-longScore  += insideBreakBull ? 3 : 0
-shortScore += insideBreakBear ? 3 : 0
-
-// Context
-longScore  += ribbonStrong ? 5 : 0
-shortScore += ribbonStrong ? 5 : 0
-
-longScore  -= ribbonTight ? 6 : 0
-shortScore -= ribbonTight ? 6 : 0
-
-longScore  += expansion ? 4 : 0
-shortScore += expansion ? 4 : 0
-
-longScore  -= compression ? 5 : 0
-shortScore -= compression ? 5 : 0
-
-longScore  -= overextendedLong ? 6 : 0
-shortScore -= overextendedShort ? 6 : 0
-
-longScore  += chochBull ? 3 : 0
-shortScore += chochBear ? 3 : 0
-
-// MTF intelligence layer
-longScore  += useMTF and mtf1AlignedLong ? mtfWeightBias1 : 0
-shortScore += useMTF and mtf1AlignedShort ? mtfWeightBias1 : 0
-
-longScore  += useMTF and mtf2AlignedLong ? mtfWeightBias2 : 0
-shortScore += useMTF and mtf2AlignedShort ? mtfWeightBias2 : 0
-
-longScore  -= mtfConflictLong ? 10 : 0
-shortScore -= mtfConflictShort ? 10 : 0
-
-longScore  := math.max(0, math.min(longScore, 100))
-shortScore := math.max(0, math.min(shortScore, 100))
+longScore  = math.max(0, math.min(longScoreRaw,  100))
+shortScore = math.max(0, math.min(shortScoreRaw, 100))
 
 //====================================================
 // FILTERS
@@ -474,15 +456,15 @@ shortFiltersOk =
 //====================================================
 // ENTRY LOGIC
 //====================================================
-longBase =
-     mode == "Aggressive"   ? (gmmaCrossUp or bosBull or pullbackLong or insideBreakBull) :
-     mode == "Balanced"     ? (bosBull or retestBull or pullbackLong) :
-                              (retestBull or (bosBull and bullEngulf) or (pullbackLong and bullPin))
+longBaseAggr = gmmaCrossUp or bosBull or pullbackLong or insideBreakBull
+longBaseBal  = bosBull or retestBull or pullbackLong
+longBaseCons = retestBull or (bosBull and bullEngulf) or (pullbackLong and bullPin)
+longBase     = mode == "Aggressive" ? longBaseAggr : mode == "Balanced" ? longBaseBal : longBaseCons
 
-shortBase =
-     mode == "Aggressive"   ? (gmmaCrossDown or bosBear or pullbackShort or insideBreakBear) :
-     mode == "Balanced"     ? (bosBear or retestBear or pullbackShort) :
-                              (retestBear or (bosBear and bearEngulf) or (pullbackShort and bearPin))
+shortBaseAggr = gmmaCrossDown or bosBear or pullbackShort or insideBreakBear
+shortBaseBal  = bosBear or retestBear or pullbackShort
+shortBaseCons = retestBear or (bosBear and bearEngulf) or (pullbackShort and bearPin)
+shortBase     = mode == "Aggressive" ? shortBaseAggr : mode == "Balanced" ? shortBaseBal : shortBaseCons
 
 barConfirmed = confirmOnClose ? barstate.isconfirmed : true
 
@@ -491,6 +473,21 @@ shortSignalRaw = shortBase and shortFiltersOk and shortScore >= minShortScore an
 
 longSignal  = longSignalRaw and not longSignalRaw[1]
 shortSignal = shortSignalRaw and not shortSignalRaw[1]
+
+var int lastLongSigBar   = na
+var int lastLongSigScore = na
+var int lastShortSigBar   = na
+var int lastShortSigScore = na
+
+if longSignal
+    lastLongSigBar := bar_index
+    lastLongSigScore := longScore
+if shortSignal
+    lastShortSigBar := bar_index
+    lastShortSigScore := shortScore
+
+lastLongBarsAgo  = not na(lastLongSigBar) ? bar_index - lastLongSigBar : na
+lastShortBarsAgo = not na(lastShortSigBar) ? bar_index - lastShortSigBar : na
 
 //====================================================
 // ENTRY / SL / TP
@@ -533,6 +530,26 @@ trendText =
      gmmaBull and stBull and ema200Bull ? "Bull Trend" :
      gmmaBear and stBear and ema200Bear ? "Bear Trend" :
      "Mixed"
+
+trendFullBull = gmmaBull and stBull and ema200Bull
+trendFullBear = gmmaBear and stBear and ema200Bear
+tcbLen = trendContextBars
+bullFullVotes = f_roll_bool_count(trendFullBull, tcbLen)
+bearFullVotes = f_roll_bool_count(trendFullBear, tcbLen)
+gmmaBullVotes = f_roll_bool_count(gmmaBull, tcbLen)
+gmmaBearVotes = f_roll_bool_count(gmmaBear, tcbLen)
+majVotes = int(math.ceil(tcbLen * 0.6))
+
+trendContextText =
+     bullFullVotes == tcbLen ? "Context: sustained bull (" + str.tostring(tcbLen) + "/" + str.tostring(tcbLen) + ")" :
+     bearFullVotes == tcbLen ? "Context: sustained bear (" + str.tostring(tcbLen) + "/" + str.tostring(tcbLen) + ")" :
+     bullFullVotes >= majVotes ? "Context: mostly bull (" + str.tostring(bullFullVotes) + "/" + str.tostring(tcbLen) + ")" :
+     bearFullVotes >= majVotes ? "Context: mostly bear (" + str.tostring(bearFullVotes) + "/" + str.tostring(tcbLen) + ")" :
+     gmmaBullVotes > gmmaBearVotes ? "Context: GMMA bull lean (" + str.tostring(gmmaBullVotes) + "/" + str.tostring(tcbLen) + ")" :
+     gmmaBearVotes > gmmaBullVotes ? "Context: GMMA bear lean (" + str.tostring(gmmaBearVotes) + "/" + str.tostring(tcbLen) + ")" :
+     "Context: chop / no edge (" + str.tostring(tcbLen) + "b)"
+
+trendTableReading = trendText + "\n" + trendContextText
 
 mtfBiasText =
      useMTF and mtf1AlignedLong and mtf2AlignedLong ? "HTF Bull Aligned" :
@@ -680,7 +697,7 @@ if shortSignal and showTradeLevels
 //====================================================
 // SCORE TABLE
 //====================================================
-var table t = table.new(position.top_right, 3, 22, border_width=1)
+var table t = table.new(position.top_right, 3, 24, border_width=1)
 
 if barstate.islast and showScoreTable
     table.cell(t, 0, 0, "Category", text_color=color.white, bgcolor=color.black)
@@ -700,77 +717,85 @@ if barstate.islast and showScoreTable
     table.cell(t, 2, 3, "Directional edge now")
 
     table.cell(t, 0, 4, "Trend")
-    table.cell(t, 1, 4, trendText, text_color=gmmaBull ? color.lime : gmmaBear ? color.red : color.orange)
-    table.cell(t, 2, 4, "Chart TF trend state")
+    table.cell(t, 1, 4, trendTableReading, text_color=gmmaBull ? color.lime : gmmaBear ? color.red : color.orange)
+    table.cell(t, 2, 4, "This bar + last " + str.tostring(trendContextBars) + " bars (GMMA+ST+EMA200 vote)")
 
-    table.cell(t, 0, 5, "MTF Bias")
-    table.cell(t, 1, 5, mtfBiasText, text_color=mtf1AlignedLong or mtf2AlignedLong ? color.lime : mtf1AlignedShort or mtf2AlignedShort ? color.red : color.orange)
-    table.cell(t, 2, 5, "Higher timeframe alignment")
+    table.cell(t, 0, 5, "Last LONG")
+    table.cell(t, 1, 5, na(lastLongBarsAgo) ? "-" : str.tostring(lastLongBarsAgo) + " bars, score " + str.tostring(lastLongSigScore), text_color=color.lime)
+    table.cell(t, 2, 5, "Last printed long signal on chart")
 
-    table.cell(t, 0, 6, "TF1 " + tfBias1)
-    table.cell(t, 1, 6, f_bias_text(mtf1AlignedLong, mtf1AlignedShort), text_color=mtf1AlignedLong ? color.lime : mtf1AlignedShort ? color.red : color.orange)
-    table.cell(t, 2, 6, "Bias TF1")
+    table.cell(t, 0, 6, "Last SHORT")
+    table.cell(t, 1, 6, na(lastShortBarsAgo) ? "-" : str.tostring(lastShortBarsAgo) + " bars, score " + str.tostring(lastShortSigScore), text_color=color.red)
+    table.cell(t, 2, 6, "Last printed short signal on chart")
 
-    table.cell(t, 0, 7, "TF2 " + tfBias2)
-    table.cell(t, 1, 7, f_bias_text(mtf2AlignedLong, mtf2AlignedShort), text_color=mtf2AlignedLong ? color.lime : mtf2AlignedShort ? color.red : color.orange)
-    table.cell(t, 2, 7, "Bias TF2")
+    table.cell(t, 0, 7, "MTF Bias")
+    table.cell(t, 1, 7, mtfBiasText, text_color=mtf1AlignedLong or mtf2AlignedLong ? color.lime : mtf1AlignedShort or mtf2AlignedShort ? color.red : color.orange)
+    table.cell(t, 2, 7, "Higher timeframe alignment")
 
-    table.cell(t, 0, 8, "Structure")
-    table.cell(t, 1, 8, structureText, text_color=dowBull or chochBull ? color.lime : dowBear or chochBear ? color.red : color.orange)
-    table.cell(t, 2, 8, "Dow-style structure read")
+    table.cell(t, 0, 8, "TF1 " + tfBias1)
+    table.cell(t, 1, 8, f_bias_text(mtf1AlignedLong, mtf1AlignedShort), text_color=mtf1AlignedLong ? color.lime : mtf1AlignedShort ? color.red : color.orange)
+    table.cell(t, 2, 8, "Bias TF1")
 
-    table.cell(t, 0, 9, "Price Action")
-    table.cell(t, 1, 9, paText, text_color=bosBull or retestBull or bullEngulf or bullPin ? color.lime : bosBear or retestBear or bearEngulf or bearPin ? color.red : color.orange)
-    table.cell(t, 2, 9, "Most relevant PA event")
+    table.cell(t, 0, 9, "TF2 " + tfBias2)
+    table.cell(t, 1, 9, f_bias_text(mtf2AlignedLong, mtf2AlignedShort), text_color=mtf2AlignedLong ? color.lime : mtf2AlignedShort ? color.red : color.orange)
+    table.cell(t, 2, 9, "Bias TF2")
 
-    table.cell(t, 0, 10, "Momentum")
-    table.cell(t, 1, 10, momentumText, text_color=macdBull and rsiBull ? color.lime : macdBear and rsiBear ? color.red : color.orange)
-    table.cell(t, 2, 10, "RSI + MACD + ADX")
+    table.cell(t, 0, 10, "Structure")
+    table.cell(t, 1, 10, structureText, text_color=dowBull or chochBull ? color.lime : dowBear or chochBear ? color.red : color.orange)
+    table.cell(t, 2, 10, "Dow-style structure read")
 
-    table.cell(t, 0, 11, "Condition")
-    table.cell(t, 1, 11, conditionText, text_color=expansion ? color.lime : compression ? color.orange : color.white)
-    table.cell(t, 2, 11, "Market regime feel")
+    table.cell(t, 0, 11, "Price Action")
+    table.cell(t, 1, 11, paText, text_color=bosBull or retestBull or bullEngulf or bullPin ? color.lime : bosBear or retestBear or bearEngulf or bearPin ? color.red : color.orange)
+    table.cell(t, 2, 11, "This bar’s PA label (priority chain)")
 
-    table.cell(t, 0, 12, "Stretch")
-    table.cell(t, 1, 12, stretchText, text_color=overextendedLong or overextendedShort ? color.orange : color.white)
-    table.cell(t, 2, 12, "Overextended or normal")
+    table.cell(t, 0, 12, "Momentum")
+    table.cell(t, 1, 12, momentumText, text_color=macdBull and rsiBull ? color.lime : macdBear and rsiBear ? color.red : color.orange)
+    table.cell(t, 2, 12, "RSI + MACD + ADX")
 
-    table.cell(t, 0, 13, "RSI")
-    table.cell(t, 1, 13, str.tostring(math.round(rsi)), text_color=rsiBull ? color.lime : rsiBear ? color.red : color.white)
-    table.cell(t, 2, 13, rsiBull ? "Bull pressure" : rsiBear ? "Bear pressure" : "Balanced")
+    table.cell(t, 0, 13, "Condition")
+    table.cell(t, 1, 13, conditionText, text_color=expansion ? color.lime : compression ? color.orange : color.white)
+    table.cell(t, 2, 13, "Market regime feel")
 
-    table.cell(t, 0, 14, "MACD Hist")
-    table.cell(t, 1, 14, str.tostring(macdHist, format.mintick), text_color=macdBull ? color.lime : macdBear ? color.red : color.white)
-    table.cell(t, 2, 14, macdBull ? "Bull momentum" : macdBear ? "Bear momentum" : "Flat")
+    table.cell(t, 0, 14, "Stretch")
+    table.cell(t, 1, 14, stretchText, text_color=overextendedLong or overextendedShort ? color.orange : color.white)
+    table.cell(t, 2, 14, "Overextended or normal")
 
-    table.cell(t, 0, 15, "ADX / DMI")
-    table.cell(t, 1, 15, str.tostring(math.round(adx)) + " | +DI " + str.tostring(math.round(diplus)) + " / -DI " + str.tostring(math.round(diminus)),
+    table.cell(t, 0, 15, "RSI")
+    table.cell(t, 1, 15, str.tostring(math.round(rsi)), text_color=rsiBull ? color.lime : rsiBear ? color.red : color.white)
+    table.cell(t, 2, 15, rsiBull ? "Bull pressure" : rsiBear ? "Bear pressure" : "Balanced")
+
+    table.cell(t, 0, 16, "MACD Hist")
+    table.cell(t, 1, 16, str.tostring(macdHist, format.mintick), text_color=macdBull ? color.lime : macdBear ? color.red : color.white)
+    table.cell(t, 2, 16, macdBull ? "Bull momentum" : macdBear ? "Bear momentum" : "Flat")
+
+    table.cell(t, 0, 17, "ADX / DMI")
+    table.cell(t, 1, 17, str.tostring(math.round(adx)) + " | +DI " + str.tostring(math.round(diplus)) + " / -DI " + str.tostring(math.round(diminus)),
          text_color=diplus > diminus ? color.lime : diminus > diplus ? color.red : color.white)
-    table.cell(t, 2, 15, adx >= adxMin ? "Trend force present" : "Weak force")
+    table.cell(t, 2, 17, adx >= adxMin ? "Trend force present" : "Weak force")
 
-    table.cell(t, 0, 16, "Volume x Avg")
-    table.cell(t, 1, 16, str.tostring(volRatio, "#.##") + "x", text_color=volBull ? color.lime : color.orange)
-    table.cell(t, 2, 16, volBull ? "Participation confirmed" : "Participation weak")
+    table.cell(t, 0, 18, "Volume x Avg")
+    table.cell(t, 1, 18, str.tostring(volRatio, "#.##") + "x", text_color=volBull ? color.lime : color.orange)
+    table.cell(t, 2, 18, volBull ? "Participation confirmed" : "Participation weak")
 
-    table.cell(t, 0, 17, "ATR %")
-    table.cell(t, 1, 17, str.tostring(atrPct, "#.##") + "%", text_color=atrFloorOk ? color.lime : color.orange)
-    table.cell(t, 2, 17, atrFloorOk ? "Enough movement" : "Movement weak")
+    table.cell(t, 0, 19, "ATR %")
+    table.cell(t, 1, 19, str.tostring(atrPct, "#.##") + "%", text_color=atrFloorOk ? color.lime : color.orange)
+    table.cell(t, 2, 19, atrFloorOk ? "Enough movement" : "Movement weak")
 
-    table.cell(t, 0, 18, "Pivot Levels")
-    table.cell(t, 1, 18, "H: " + (na(lastPivotHigh) ? "na" : str.tostring(lastPivotHigh, format.mintick)) + " / L: " + (na(lastPivotLow) ? "na" : str.tostring(lastPivotLow, format.mintick)))
-    table.cell(t, 2, 18, "Nearest structure levels")
+    table.cell(t, 0, 20, "Pivot Levels")
+    table.cell(t, 1, 20, "H: " + (na(lastPivotHigh) ? "na" : str.tostring(lastPivotHigh, format.mintick)) + " / L: " + (na(lastPivotLow) ? "na" : str.tostring(lastPivotLow, format.mintick)))
+    table.cell(t, 2, 20, "Nearest structure levels")
 
-    table.cell(t, 0, 19, "Long Entry Q")
-    table.cell(t, 1, 19, entryQualityLong, text_color=entryQualityLong == "Good" ? color.lime : entryQualityLong == "Late/Chase" ? color.orange : color.white)
-    table.cell(t, 2, 19, "Quality if taking long")
+    table.cell(t, 0, 21, "Long Entry Q")
+    table.cell(t, 1, 21, entryQualityLong, text_color=entryQualityLong == "Good" ? color.lime : entryQualityLong == "Late/Chase" ? color.orange : color.white)
+    table.cell(t, 2, 21, "Quality if taking long")
 
-    table.cell(t, 0, 20, "Short Entry Q")
-    table.cell(t, 1, 20, entryQualityShort, text_color=entryQualityShort == "Good" ? color.red : entryQualityShort == "Late/Chase" ? color.orange : color.white)
-    table.cell(t, 2, 20, "Quality if taking short")
+    table.cell(t, 0, 22, "Short Entry Q")
+    table.cell(t, 1, 22, entryQualityShort, text_color=entryQualityShort == "Good" ? color.red : entryQualityShort == "Late/Chase" ? color.orange : color.white)
+    table.cell(t, 2, 22, "Quality if taking short")
 
-    table.cell(t, 0, 21, "Signal Grade")
-    table.cell(t, 1, 21, signalGrade, text_color=signalGrade == "A+" ? color.lime : signalGrade == "A" ? color.lime : signalGrade == "B" ? color.yellow : color.orange)
-    table.cell(t, 2, 21, "Overall setup quality")
+    table.cell(t, 0, 23, "Signal Grade")
+    table.cell(t, 1, 23, signalGrade, text_color=signalGrade == "A+" ? color.lime : signalGrade == "A" ? color.lime : signalGrade == "B" ? color.yellow : color.orange)
+    table.cell(t, 2, 23, "Overall setup quality")
 
 //====================================================
 // ALERTS
