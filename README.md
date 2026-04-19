@@ -227,15 +227,18 @@ Lines extend a fixed number of bars ahead for visualization; **manage real trade
 
 ## 9. Score Table cheat sheet
 
+The table only draws on the **last bar** of the visible chart (`barstate.islast`), so it always reflects the **right edge** of history (or the live candle), not a scrolled-back bar.
+
 | Row | Meaning |
 |-----|--------|
 | Long / Short Score | Raw 0–100 after clamp; compare to your min threshold. |
 | Bias | Long vs short edge if one score leads by **> 10**. |
-| Trend | Bull / Bear / Mixed from GMMA + ST + EMA200. |
+| Trend | **Line 1:** instant read (Bull / Bear / Mixed) if GMMA + Supertrend + EMA200 all agree **on this bar**. **Line 2:** **Context** — how many of the last **N** bars (input **Table: trend context bars**, default 5) agreed on that full bull/bear stack, or GMMA-only lean / chop. |
+| Last LONG / Last SHORT | Bars since the **last** printed **LONG** / **SHORT** label and the **score stored at that signal** (persists while you scroll; resets when a new signal of that side fires). |
 | MTF Bias | Combined HTF story. |
 | TF1 / TF2 | Bull / Bear / Neutral for each bias timeframe. |
 | Structure | Dow-style + CHoCH-style hints. |
-| Price Action | Highest-priority PA label for that bar. |
+| Price Action | **This bar only** — one label from a fixed priority chain (BOS beats retest beats engulf …). |
 | Momentum | ADX + MACD + RSI combined text. |
 | Condition | Expansion / compression / tight-choppy / normal. |
 | Stretch | EMA200 distance vs ATR-style overextension. |
